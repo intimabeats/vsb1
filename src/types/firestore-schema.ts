@@ -110,6 +110,7 @@ export interface FieldDefinition {
   description?: string;
   options?: string[];  // For select/radio fields
   defaultValue?: any;
+  value?: any; // Added value property to fix errors
   validation?: {
     min?: number;
     max?: number;
@@ -132,9 +133,16 @@ export interface TaskAction {
   infoTitle?: string;         // Title for the info section
   infoDescription?: string;   // Description for the info section
   hasAttachments?: boolean;   // Flag for required attachments
+  // Added properties to match FieldDefinition
+  label?: string;             // Added to fix errors
+  placeholder?: string;       // Added to fix errors
+  required?: boolean;         // Added to fix errors
+  options?: string[];         // Added to fix errors
+  defaultValue?: any;         // Added to fix errors
+  value?: any;                // Added to fix errors
   data?: {
     fileURLs?: string[];      // Array of file URLs for 'info' type
-    steps?: FieldDefinition[]; // Steps for document type
+    steps?: FieldDefinition[] | TaskAction[]; // Allow both types to fix errors
     value?: any;              // Stored value for the field
     values?: Record<string, any>; // For document with multiple fields
     stepNumber?: number;      // Added stepNumber to fix type errors
