@@ -119,7 +119,7 @@ export interface FieldDefinition {
   hasAttachments?: boolean; // For info fields that can have attachments
 }
 
-//  Interface for a task action
+// Interface for a task action
 export interface TaskAction {
   id: string;
   title: string;
@@ -137,6 +137,7 @@ export interface TaskAction {
     steps?: FieldDefinition[]; // Steps for document type
     value?: any;              // Stored value for the field
     values?: Record<string, any>; // For document with multiple fields
+    stepNumber?: number;      // Added stepNumber to fix type errors
   };
   attachments?: {             // Attachments specific to THIS action step
     id: string;
@@ -153,7 +154,7 @@ export interface ActionTemplateSchema {
   title: string;
   description?: string;
   type: 'custom' | 'standard'; // Template type
-  elements: FieldDefinition[]; // Array of field definitions
+  elements: TaskAction[]; // Changed from FieldDefinition[] to TaskAction[] to fix type errors
   order: number;
   createdBy?: string;
   createdAt?: number;

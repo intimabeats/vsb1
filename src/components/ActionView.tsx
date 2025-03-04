@@ -389,9 +389,11 @@ export const ActionView: React.FC<ActionViewProps> = ({
                       type="text"
                       value={step.value || ''}
                       onChange={(e) => {
-                        const newSteps = [...editedAction.data!.steps];
-                        newSteps[index].value = e.target.value;
-                        handleChange('data', { ...editedAction.data, steps: newSteps });
+                        if (editedAction.data && editedAction.data.steps) {
+                          const newSteps = [...editedAction.data.steps];
+                          newSteps[index].value = e.target.value;
+                          handleChange('data', { ...editedAction.data, steps: newSteps });
+                        }
                       }}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
                       placeholder={step.placeholder || "Digite aqui..."}
@@ -400,9 +402,11 @@ export const ActionView: React.FC<ActionViewProps> = ({
                     <textarea
                       value={step.value || ''}
                       onChange={(e) => {
-                        const newSteps = [...editedAction.data!.steps];
-                        newSteps[index].value = e.target.value;
-                        handleChange('data', { ...editedAction.data, steps: newSteps });
+                        if (editedAction.data && editedAction.data.steps) {
+                          const newSteps = [...editedAction.data.steps];
+                          newSteps[index].value = e.target.value;
+                          handleChange('data', { ...editedAction.data, steps: newSteps });
+                        }
                       }}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300 min-h-[100px]"
                       placeholder={step.placeholder || "Digite o texto detalhado aqui..."}
