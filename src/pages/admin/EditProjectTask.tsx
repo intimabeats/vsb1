@@ -34,12 +34,13 @@ import {
   Save,
   HelpCircle,
   Flag,
-  Users
+  Users,
+  Upload
 } from 'lucide-react'
 import { taskService } from '../../services/TaskService'
 import { projectService } from '../../services/ProjectService'
 import { userManagementService } from '../../services/UserManagementService'
-import { TaskSchema, TaskAction } from '../../types/firestore-schema'
+import { TaskSchema, TaskAction, ActionTemplateSchema } from '../../types/firestore-schema'
 import { ActionView } from '../../components/ActionView'
 import { ActionDocument } from '../../components/ActionDocument'
 import { systemSettingsService } from '../../services/SystemSettingsService'
@@ -78,6 +79,7 @@ export const EditProjectTask: React.FC = () => {
   const [coinsReward, setCoinsReward] = useState(0)
   const [templates, setTemplates] = useState<{ id: string, title: string, description: string }[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [previewTemplate, setPreviewTemplate] = useState<ActionTemplateSchema | null>(null)
   const [previewAction, setPreviewAction] = useState<TaskAction | null>(null)
   const [showTemplateInfo, setShowTemplateInfo] = useState(false)
   
@@ -184,7 +186,9 @@ export const EditProjectTask: React.FC = () => {
     if (selectedTemplate) {
       actionTemplateService.getActionTemplateById(selectedTemplate)
         .then(template => {
-          setPreviewTemplate(template);
+          if (template) {
+            setPreviewTemplate(template);
+          }
         })
         .catch(err => {
           console.error("Error loading template preview:", err);
@@ -499,7 +503,6 @@ export const EditProjectTask: React.FC = () => {
         return <div className="mb-3 text-sm text-gray-500">Tipo de campo não suportado: {field.type}</div>;
     }
   };
-
   return (
     <Layout role={currentUser?.role || 'admin'}>
       <div className="container mx-auto p-6">
@@ -570,8 +573,8 @@ export const EditProjectTask: React.FC = () => {
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formErrors.assignedTo ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500 border-gray-300'}`}
                   >
                     <option value="">Selecione um responsável</option>
-                    {users && Object.entries(users).map(([id, user]) => (
-                      <option key={id} value={id}>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
                         {user.name}
                       </option>
                     ))}
@@ -869,3 +872,5 @@ export const EditProjectTask: React.FC = () => {
     </Layout>
   )
 }
+
+export default EditProjectTask;
