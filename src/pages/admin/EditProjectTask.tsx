@@ -429,3 +429,443 @@ export const EditProjectTask: React.FC = () => {
             {field.description && <p className="mt-1 text-xs text-gray-500">{field.description}</p>}
           </div>
         );
+      case 'date':
+        return (
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+            <input 
+              type="date" 
+              disabled 
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500"
+            />
+            {field.description && <p className="mt-1 text-xs text-gray-500">{field.description}</p>}
+          </div>
+        );
+      case 'select':
+        return (
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+            <select 
+              disabled 
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500"
+            >
+              <option value="">Selecione uma opção</option>
+              {field.options?.map((option: string, i: number) => (
+                <option key={i} value={option}>{option}</option>
+              ))}
+            </select>
+            {field.description && <p className="mt-1 text-xs text-gray-500">{field.description}</p>}
+          </div>
+        );
+      case 'checkbox':
+        return (
+          <div className="mb-3">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                disabled
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label className="ml-2 block text-sm text-gray-700">{field.label}</label>
+            </div>
+            {field.description && <p className="mt-1 text-xs text-gray-500 ml-6">{field.description}</p>}
+          </div>
+        );
+      case 'file_upload':
+        return (
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+            <div className="border border-dashed border-gray-300 rounded-md p-4 text-center bg-gray-50">
+              <p className="text-sm text-gray-500">Clique para fazer upload ou arraste arquivos</p>
+            </div>
+            {field.description && <p className="mt-1 text-xs text-gray-500">{field.description}</p>}
+          </div>
+        );
+      case 'info':
+        return (
+          <div className="mb-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded-md">
+            <h5 className="font-medium text-blue-700">{field.label}</h5>
+            <p className="text-sm text-blue-600 mt-1">{field.description}</p>
+            {field.hasAttachments && (
+              <div className="mt-2 p-2 bg-white rounded border border-blue-200">
+                <p className="text-sm text-blue-600 flex items-center">
+                  <Upload size={14} className="mr-1" /> Anexos serão exibidos aqui
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      default:
+        return <div className="mb-3 text-sm text-gray-500">Tipo de campo não suportado: {field.type}</div>;
+    }
+  };
+
+  return (
+    <Layout role={currentUser?.role || 'admin'}>
+      <div className="container mx-auto p-6">
+        <div className="flex items-center mb-6">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="mr-4 p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center">
+            <Edit className="mr-3 text-blue-600" />
+            Editar Tarefa
+          </h1>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg flex items-center mb-6">
+            <AlertTriangle className="mr-3 flex-shrink-0" size={20} />
+            <p>{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg flex items-center mb-6">
+            <CheckCircle className="mr-3 flex-shrink-0" size={20} />
+            <p>{success}</p>
+          </div>
+        )}
+
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Informações da Tarefa</h2>
+            <p className="text-sm text-gray-600">Edite os detalhes da tarefa</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <FileText size={16} className="mr-2 text-blue-600" />
+                    Título
+                  </label>
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="Digite o título da tarefa"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formErrors.title ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500 border-gray-300'}`}
+                  />
+                  {formErrors.title && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.title}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <Users size={16} className="mr-2 text-blue-600" />
+                    Responsável
+                  </label>
+                  <select
+                    name="assignedTo"
+                    value={formData.assignedTo}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formErrors.assignedTo ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500 border-gray-300'}`}
+                  >
+                    <option value="">Selecione um responsável</option>
+                    {users && Object.entries(users).map(([id, user]) => (
+                      <option key={id} value={id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.assignedTo && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.assignedTo}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <Flag size={16} className="mr-2 text-blue-600" />
+                    Prioridade
+                  </label>
+                  <select
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="low">Baixa</option>
+                    <option value="medium">Média</option>
+                    <option value="high">Alta</option>
+                    <option value="critical">Crítica</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                    <FileText size={16} className="mr-2 text-blue-600" />
+                    Descrição
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Descreva a tarefa em detalhes"
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 h-24 ${formErrors.description ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500 border-gray-300'}`}
+                  />
+                  {formErrors.description && (
+                    <p className="text-red-500 text-xs mt-1">{formErrors.description}</p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                      <Calendar size={16} className="mr-2 text-blue-600" />
+                      Data de Início
+                    </label>
+                    <input
+                      type="date"
+                      name="startDate"
+                      value={formData.startDate}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formErrors.startDate ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500 border-gray-300'}`}
+                    />
+                    {formErrors.startDate && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.startDate}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                      <Clock size={16} className="mr-2 text-blue-600" />
+                      Data de Vencimento
+                    </label>
+                    <input
+                      type="date"
+                      name="dueDate"
+                      value={formData.dueDate}
+                      onChange={handleChange}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${formErrors.dueDate ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500 border-gray-300'}`}
+                    />
+                    {formErrors.dueDate && (
+                      <p className="text-red-500 text-xs mt-1">{formErrors.dueDate}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <Award size={16} className="mr-2 text-blue-600" />
+                    Nível de Dificuldade ({formData.difficultyLevel})
+                  </label>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-xs text-gray-500">Fácil</span>
+                    <input
+                      type="range"
+                      min="2"
+                      max="9"
+                      step="1"
+                      value={formData.difficultyLevel}
+                      onChange={(e) => setFormData(prev => ({ ...prev, difficultyLevel: parseInt(e.target.value) }))}
+                      className="flex-grow h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span className="text-xs text-gray-500">Difícil</span>
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-xs text-gray-500">Recompensa: {coinsReward} moedas</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Steps Navigation */}
+            <div className="border-t border-gray-200 pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-800">Etapas da Tarefa</h3>
+                <button
+                  type="button"
+                  onClick={handleAddStep}
+                  className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center text-sm"
+                >
+                  <Plus size={16} className="mr-1" /> Adicionar Etapa
+                </button>
+              </div>
+              
+              {/* Step Tabs */}
+              <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4">
+                {Array.from({ length: totalSteps }, (_, i) => i + 1).map(step => (
+                  <div key={step} className="flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(step)}
+                      className={`px-4 py-2 rounded-lg transition ${
+                        currentStep === step
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Etapa {step}
+                    </button>
+                    {totalSteps > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveStep(step)}
+                        className="ml-1 p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                        title="Remover Etapa"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Current Step Content */}
+              <div>
+                <h4 className="text-md font-medium text-gray-700 mb-4">
+                  Etapa {currentStep}: Ações
+                </h4>
+                
+                {/* Action Templates Section */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+                  <div className="flex flex-col space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Selecione um Modelo de Ação
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowTemplateInfo(!showTemplateInfo)}
+                        className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50"
+                      >
+                        <HelpCircle size={16} />
+                      </button>
+                    </div>
+                    
+                    {showTemplateInfo && (
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800 mb-2">
+                        <p className="font-medium mb-1">O que são modelos de ação?</p>
+                        <p>Modelos de ação definem os campos que o usuário deverá preencher ao realizar uma tarefa. 
+                        Ao adicionar um modelo, você está criando um formulário estruturado que o responsável pela tarefa deverá completar.</p>
+                      </div>
+                    )}
+                    
+                    <div className="flex space-x-2">
+                      <select
+                        value={selectedTemplate}
+                        onChange={(e) => setSelectedTemplate(e.target.value)}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Selecione um Modelo</option>
+                        {templates.map(template => (
+                          <option key={template.id} value={template.id}>
+                            {template.title}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleAddActionFromTemplate}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center"
+                        disabled={!selectedTemplate}
+                      >
+                        <Plus size={18} className="mr-1" /> Adicionar
+                      </button>
+                    </div>
+                    
+                    {selectedTemplate && previewTemplate && (
+                      <div className="mt-2">
+                        <div className="bg-white p-4 rounded-lg border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-medium text-gray-800 flex items-center">
+                              <Eye size={16} className="mr-2 text-blue-600" />
+                              Visualização do Modelo
+                            </h3>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-4">{previewTemplate.description}</p>
+                          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            {previewTemplate.elements?.map((element: any, index: number) => (
+                              <div key={index}>
+                                {renderFieldPreview(element)}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Display Added Actions for Current Step */}
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {(!actionsByStep[currentStep] || actionsByStep[currentStep].length === 0) ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                      <Info className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                      <p className="text-gray-500">Adicione ações do modelo para esta etapa</p>
+                      <p className="text-sm text-gray-400 mt-1">As ações definem o que o responsável precisará fazer para completar a tarefa</p>
+                    </div>
+                  ) : (
+                    actionsByStep[currentStep].map((action) => (
+                      <div key={action.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center">
+                            <div className="bg-blue-100 p-2 rounded-full mr-3">
+                              <FileText size={16} className="text-blue-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-gray-900">{action.title}</h4>
+                              <p className="text-sm text-gray-500 line-clamp-1">
+                                {action.type === 'document' 
+                                  ? `${action.data?.steps?.length || 0} campos para preencher` 
+                                  : action.description}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAction(action.id)}
+                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
+                            title="Remover ação"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className={`px-6 py-2 rounded-lg text-white transition flex items-center ${loading ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin mr-2" size={18} />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2" size={18} /> Salvar Alterações
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Layout>
+  )
+}
