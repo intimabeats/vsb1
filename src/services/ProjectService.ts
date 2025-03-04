@@ -17,9 +17,16 @@ import {
   DocumentData,
   QuerySnapshot
 } from 'firebase/firestore'
-import { auth } from '../config/firebase'
+import { auth, storage } from '../config/firebase'
 import { ProjectSchema } from '../types/firestore-schema'
-import { activityService } from './ActivityService'; // Import
+import { activityService } from './ActivityService'
+import { 
+  ref, 
+  listAll, 
+  getDownloadURL, 
+  uploadBytes, 
+  deleteObject 
+} from 'firebase/storage'
 
 export class ProjectService {
   private db = getFirestore()
@@ -408,6 +415,148 @@ export class ProjectService {
       });
     } catch (error) {
       console.error('Error unarchiving project:', error);
+      throw error;
+    }
+  }
+
+  // NEW: Add file to project
+  async addFileToProject(projectId: string, file: File): Promise<string> {
+    try {
+      const storageRef = ref(storage, `projects/${projectId}/files/${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      // Update project with file reference
+      const projectRef = doc(this.db, 'projects', projectId);
+      const projectDoc = await getDoc(projectRef);
+      
+      if (!projectDoc.exists()) {
+        throw new Error('Project not found');
+      }
+      
+      const projectData = projectDoc.data();
+      const files = projectData.files || [];
+      
+      await updateDoc(projectRef, {
+        files: [...files, {
+          name: file.name,
+          url: downloadURL,
+          type: file.type,
+          size: file.size,
+          uploadedAt: Date.now()
+        }],
+        updatedAt: Date.now()
+      });
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Error adding file to project:', error);
+      throw error;
+    }
+  }
+
+  // NEW: Get project files
+  async getProjectFiles(projectId: string): Promise<any[]> {
+    try {
+      const projectRef = doc(this.db, 'projects', projectId);
+      const projectDoc = await getDoc(projectRef);
+      
+      if (!projectDoc.exists()) {
+        throw new Error('Project not found');
+      }
+      
+      const projectData = projectDoc.data();
+      return projectData.files || [];
+    } catch (error) {
+      console.error('Error getting project files:', error);
+      throw error;
+    }
+  }
+
+  // NEW: List all files in project storage
+  async listProjectFiles(projectId: string): Promise<any[]> {
+    try {
+      const storageRef = ref(storage, `projects/${projectId}/files`);
+      const filesList = await listAll(storageRef);
+      
+      const filesData = await Promise.all(
+        filesList.items.map(async (fileRef) => {
+          const url = await getDownloadURL(fileRef);
+          const metadata = await getMetadata(fileRef);
+          
+          return {
+            name: fileRef.name,
+            url,
+            contentType: metadata.contentType,
+            size: metadata.size,
+            timeCreated: metadata.timeCreated
+          };
+        })
+      );
+      
+      return filesData;
+    } catch (error) {
+      console.error('Error listing project files:', error);
+      throw error;
+    }
+  }
+
+  // NEW: Delete file from project
+  async deleteProjectFile(projectId: string, fileName: string): Promise<void> {
+    try {
+      // Delete from storage
+      const fileRef = ref(storage, `projects/${projectId}/files/${fileName}`);
+      await deleteObject(fileRef);
+      
+      // Update project document
+      const projectRef = doc(this.db, 'projects', projectId);
+      const projectDoc = await getDoc(projectRef);
+      
+      if (!projectDoc.exists()) {
+        throw new Error('Project not found');
+      }
+      
+      const projectData = projectDoc.data();
+      const files = projectData.files || [];
+      
+      await updateDoc(projectRef, {
+        files: files.filter((file: any) => file.name !== fileName),
+        updatedAt: Date.now()
+      });
+    } catch (error) {
+      console.error('Error deleting project file:', error);
+      throw error;
+    }
+  }
+
+  // NEW: Add files from task to project
+  async addTaskFilesToProject(projectId: string, taskId: string, files: any[]): Promise<void> {
+    try {
+      // Update project document with file references
+      const projectRef = doc(this.db, 'projects', projectId);
+      const projectDoc = await getDoc(projectRef);
+      
+      if (!projectDoc.exists()) {
+        throw new Error('Project not found');
+      }
+      
+      const projectData = projectDoc.data();
+      const existingFiles = projectData.files || [];
+      
+      // Add task ID to each file for reference
+      const filesWithTaskId = files.map(file => ({
+        ...file,
+        taskId,
+        addedFromTask: true,
+        addedAt: Date.now()
+      }));
+      
+      await updateDoc(projectRef, {
+        files: [...existingFiles, ...filesWithTaskId],
+        updatedAt: Date.now()
+      });
+    } catch (error) {
+      console.error('Error adding task files to project:', error);
       throw error;
     }
   }

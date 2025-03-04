@@ -1,4 +1,4 @@
-// src/pages/admin/TaskDetails.tsx
+// src/pages/admin/TaskDetails.tsx (Parte 1)
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Layout } from '../../components/Layout'
@@ -62,6 +62,7 @@ export const TaskDetails: React.FC = () => {
   const [comment, setComment] = useState('')
   const [comments, setComments] = useState<any[]>([])
   const [currentStep, setCurrentStep] = useState(0)
+  const [steps, setSteps] = useState<number[]>([])
 
   useEffect(() => {
     const loadTask = async () => {
@@ -74,6 +75,14 @@ export const TaskDetails: React.FC = () => {
         const fetchedTask = await taskService.getTaskById(taskId)
         setTask(fetchedTask)
         setComments(fetchedTask.comments || [])
+
+        // Organize actions into steps
+        const taskSteps = organizeActionsIntoSteps(fetchedTask.actions);
+        setSteps(Object.keys(taskSteps).map(Number));
+        
+        if (taskSteps && Object.keys(taskSteps).length > 0) {
+          setCurrentStep(Number(Object.keys(taskSteps)[0]));
+        }
 
         const fetchedProject = await projectService.getProjectById(fetchedTask.projectId)
         setProject({ name: fetchedProject.name })
@@ -112,6 +121,38 @@ export const TaskDetails: React.FC = () => {
 
     loadTask()
   }, [taskId])
+
+  // Helper function to organize actions into steps
+  const organizeActionsIntoSteps = (actions: TaskAction[]) => {
+    const steps: { [key: number]: TaskAction[] } = {};
+    let currentStepNumber = 1;
+    
+    actions.forEach(action => {
+      // Check if action has step information
+      const stepNumber = action.data?.stepNumber || currentStepNumber;
+      
+      if (!steps[stepNumber]) {
+        steps[stepNumber] = [];
+      }
+      
+      steps[stepNumber].push(action);
+      
+      // If this is an approval action, increment the step number
+      if (action.type === 'approval') {
+        currentStepNumber++;
+      }
+    });
+    
+    return steps;
+  };
+
+  // Get actions for the current step
+  const getCurrentStepActions = () => {
+    if (!task) return [];
+    
+    const taskSteps = organizeActionsIntoSteps(task.actions);
+    return taskSteps[currentStep] || [];
+  };
 
   const handleActionComplete = async (actionId: string, data?: any) => {
     try {
@@ -271,7 +312,7 @@ export const TaskDetails: React.FC = () => {
       setError("Failed to add comment.");
     }
   };
-
+// src/pages/admin/TaskDetails.tsx (Parte 2)
   if (isLoading) {
     return (
       <Layout role={currentUser?.role || 'employee'} isLoading={true}>
@@ -536,6 +577,30 @@ export const TaskDetails: React.FC = () => {
               <CheckCircle className="mr-2 text-blue-600" /> Ações da Tarefa
             </h2>
             
+            {/* Step Navigation */}
+            {steps.length > 1 && (
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-md font-medium text-gray-700">Etapas</h3>
+                </div>
+                <div className="flex space-x-2 overflow-x-auto pb-2">
+                  {steps.map((step) => (
+                    <button
+                      key={step}
+                      onClick={() => setCurrentStep(step)}
+                      className={`px-4 py-2 rounded-lg transition ${
+                        currentStep === step
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Etapa {step}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {task.actions.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
                 <CheckCircle className="mx-auto h-12 w-12 text-gray-400" />
@@ -544,7 +609,7 @@ export const TaskDetails: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {task.actions.map((action, index) => (
+                {getCurrentStepActions().map((action, index) => (
                   <div 
                     key={action.id} 
                     className={`border rounded-lg overflow-hidden transition-all ${
@@ -628,11 +693,11 @@ export const TaskDetails: React.FC = () => {
                       </div>
                       
                       {/* Display attachments for info type actions */}
-                      {action.type === 'info' && action.data?.fileURLs && action.data.fileURLs.length > 0 && (
+                      {action.type === 'info' && action.hasAttachments && action.data?.fileURLs && action.data.fileURLs.length > 0 && (
                         <div className="mt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Anexos:</h4>
                           <div className="flex flex-wrap gap-2">
-                            {action.data.fileURLs.map((url, idx) => (
+                            {action.data.fileURLs.map((url: string, idx: number) => (
                               <a
                                 key={idx}
                                 href={url}
@@ -649,20 +714,14 @@ export const TaskDetails: React.FC = () => {
                       )}
 
                       {/* Display uploaded files for file_upload type actions */}
-                      {action.type === 'file_upload' && action.data?.uploadedFiles && action.data.uploadedFiles.length > 0 && (
+                      {action.type === 'file_upload' && action.attachments && action.attachments.length > 0 && (
                         <div className="mt-4">
                           <h4 className="text-sm font-medium text-gray-700 mb-2">Arquivos Carregados:</h4>
                           <div className="flex flex-wrap gap-2">
-                            {action.data.uploadedFiles.map((file, idx) => (
-                              <a
-                                key={idx}
-                                href={file.url}
-                                download={file.name}
-                                className="flex items-center px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                              >
-                                <Download size={16} className="mr-2 text-gray-600" />
-                                <span className="text-sm text-gray-700">{file.name}</span>
-                              </a>
+                            {action.attachments.map((attachment, idx) => (
+                              <div key={idx} className="flex items-center px-3 py-2 bg-gray-100 rounded-lg">
+                                <AttachmentDisplay attachment={attachment} />
+                              </div>
                             ))}
                           </div>
                         </div>
