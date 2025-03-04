@@ -1,3 +1,4 @@
+// src/components/ActionDocument.tsx
 import React from 'react';
 import { TaskAction } from '../types/firestore-schema';
 import { 
@@ -13,7 +14,8 @@ import {
   File,
   Image,
   Video,
-  Music
+  Music,
+  Paperclip
 } from 'lucide-react';
 import { AttachmentDisplay } from './AttachmentDisplay';
 import { getDefaultProfileImage } from '../utils/user';
@@ -262,7 +264,7 @@ export const ActionDocument: React.FC<ActionDocumentProps> = ({
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {action.data?.fileURLs?.map((url: string, index: number) => (
-                  <div key={index} className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div key={index} className="flex items-center p-2 bg-gray-100 rounded-lg border border-gray-200">
                     <AttachmentDisplay 
                       attachment={{
                         id: `file-${index}`,
@@ -275,7 +277,7 @@ export const ActionDocument: React.FC<ActionDocumentProps> = ({
                 ))}
                 
                 {action.attachments?.map((attachment, index) => (
-                  <div key={index} className="flex items-center p-2 bg-gray-50 rounded-lg border border-gray-200">
+                  <div key={index} className="flex items-center p-2 bg-gray-100 rounded-lg border border-gray-200">
                     <AttachmentDisplay attachment={attachment} />
                   </div>
                 ))}
