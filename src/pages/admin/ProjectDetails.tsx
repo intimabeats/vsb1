@@ -1,4 +1,3 @@
-// src/pages/admin/ProjectDetails.tsx
 import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { Layout } from '../../components/Layout'
@@ -79,7 +78,6 @@ const FileItem: React.FC<{
     </div>
   )
 }
-
 export const ProjectDetails: React.FC = () =>
 {
   const { projectId } = useParams<{ projectId: string }>()
