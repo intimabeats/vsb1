@@ -65,8 +65,7 @@ export class TaskService {
         projectId: taskData.projectId,
         taskId: taskRef.id,
         projectName: (await projectService.getProjectById(taskData.projectId)).name,
-        taskName: taskData.title,
-        timestamp: Date.now()
+        taskName: taskData.title
       });
 
       return newTask
@@ -125,8 +124,7 @@ export class TaskService {
           taskId: taskId,
           projectName: (await projectService.getProjectById(currentTask.projectId)).name,
           taskName: currentTask.title,
-          newStatus: updates.status,
-          timestamp: Date.now()
+          newStatus: updates.status
         });
       }
 
@@ -159,8 +157,7 @@ export class TaskService {
           projectId: currentTask.projectId,
           taskId: taskId,
           projectName: (await projectService.getProjectById(currentTask.projectId)).name,
-          taskName: currentTask.title,
-          timestamp: Date.now()
+          taskName: currentTask.title
         });
       }
 

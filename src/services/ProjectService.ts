@@ -25,7 +25,8 @@ import {
   listAll, 
   getDownloadURL, 
   uploadBytes, 
-  deleteObject 
+  deleteObject,
+  getMetadata
 } from 'firebase/storage'
 
 export class ProjectService {
