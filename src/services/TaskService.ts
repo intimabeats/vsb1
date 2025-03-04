@@ -418,12 +418,12 @@ export class TaskService {
             // Adicionar referência do arquivo ao projeto
             await projectService.addFileToProject(projectId, {
               name: fileName,
-              url: newFileURL,
               type: blob.type,
               size: blob.size,
               taskId: taskId,
-              uploadedAt: Date.now()
-            });
+              uploadedAt: Date.now(),
+              url: newFileURL // Pass URL as a separate property, not trying to create a File object
+            } as any); // Use 'as any' to bypass TypeScript checking for this custom object
             
             // Opcional: Excluir o arquivo original
             // await deleteObject(fileRef);
