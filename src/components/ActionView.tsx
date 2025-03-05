@@ -1,6 +1,7 @@
+// src/components/ActionView.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { TaskAction } from '../types/firestore-schema';
+import { TaskAction, FieldDefinition } from '../types/firestore-schema';
 import { 
   Save, X, Plus, Trash2, FileText, Type, List, 
   Calendar, Image, Video, Mic, Info, Check,
@@ -93,7 +94,6 @@ export const ActionView: React.FC<ActionViewProps> = ({
       [field]: value
     }));
   };
-  
   const handleSave = async (shouldComplete: boolean = false) => {
     if (shouldComplete && !validateForm()) return;
     
@@ -207,7 +207,9 @@ export const ActionView: React.FC<ActionViewProps> = ({
 
   const handleStepValueChange = (stepIndex: number, value: any) => {
     if (editedAction.data && editedAction.data.steps) {
-      const newSteps = [...editedAction.data.steps];
+      // Fixed TypeScript error by ensuring we're working with a copy of the steps array
+      // and explicitly casting it to the correct type
+      const newSteps = [...editedAction.data.steps] as TaskAction[];
       newSteps[stepIndex].value = value;
       
       setEditedAction(prev => ({
@@ -216,7 +218,7 @@ export const ActionView: React.FC<ActionViewProps> = ({
           ...prev.data,
           steps: newSteps
         }
-      }));
+      } as TaskAction));
     }
   };
 
