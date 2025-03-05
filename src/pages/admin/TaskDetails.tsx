@@ -25,7 +25,6 @@ import {
   MoreVertical,
   CornerUpLeft,
   Info,
-  Edit,
   Eye,
   Award,
   BarChart2,
@@ -57,12 +56,9 @@ export const TaskDetails: React.FC = () => {
   const { currentUser } = useAuth()
   const [isActionViewOpen, setIsActionViewOpen] = useState(false)
   const [isDocumentViewOpen, setIsDocumentViewOpen] = useState(false)
-  const [isEditMode, setIsEditMode] = useState(false)
   const [activeSection, setActiveSection] = useState<'details' | 'actions' | 'comments'>('details')
   const [comment, setComment] = useState('')
   const [comments, setComments] = useState<any[]>([])
-  const [currentStep, setCurrentStep] = useState(0)
-  const [steps, setSteps] = useState<number[]>([])
 
   useEffect(() => {
     const loadTask = async () => {
@@ -75,14 +71,6 @@ export const TaskDetails: React.FC = () => {
         const fetchedTask = await taskService.getTaskById(taskId)
         setTask(fetchedTask)
         setComments(fetchedTask.comments || [])
-
-        // Organize actions into steps
-        const taskSteps = organizeActionsIntoSteps(fetchedTask.actions);
-        setSteps(Object.keys(taskSteps).map(Number));
-        
-        if (taskSteps && Object.keys(taskSteps).length > 0) {
-          setCurrentStep(Number(Object.keys(taskSteps)[0]));
-        }
 
         const fetchedProject = await projectService.getProjectById(fetchedTask.projectId)
         setProject({ name: fetchedProject.name })
@@ -122,38 +110,6 @@ export const TaskDetails: React.FC = () => {
     loadTask()
   }, [taskId])
 
-  // Helper function to organize actions into steps
-  const organizeActionsIntoSteps = (actions: TaskAction[]) => {
-    const steps: { [key: number]: TaskAction[] } = {};
-    let currentStepNumber = 1;
-    
-    actions.forEach(action => {
-      // Check if action has step information
-      const stepNumber = action.data?.stepNumber || currentStepNumber;
-      
-      if (!steps[stepNumber]) {
-        steps[stepNumber] = [];
-      }
-      
-      steps[stepNumber].push(action);
-      
-      // If this is an approval action, increment the step number
-      if (action.type === 'approval') {
-        currentStepNumber++;
-      }
-    });
-    
-    return steps;
-  };
-
-  // Get actions for the current step
-  const getCurrentStepActions = () => {
-    if (!task) return [];
-    
-    const taskSteps = organizeActionsIntoSteps(task.actions);
-    return taskSteps[currentStep] || [];
-  };
-
   const handleActionComplete = async (actionId: string, data?: any) => {
     try {
       await taskService.completeTaskAction(taskId!, actionId, data)
@@ -161,7 +117,6 @@ export const TaskDetails: React.FC = () => {
       setTask({ ...updatedTask })
       setSelectedAction(null)
       setIsActionViewOpen(false)
-      setIsEditMode(false)
     } catch (error) {
       console.error('Error completing action:', error)
     }
@@ -276,13 +231,6 @@ export const TaskDetails: React.FC = () => {
       console.error("Error reverting task to pending:", error)
       setError("Failed to revert task to pending.")
     }
-  }
-
-  const handleEditAction = (action: TaskAction) => {
-    setSelectedAction(action)
-    setIsEditMode(true)
-    setIsActionViewOpen(true)
-    setIsDocumentViewOpen(false)
   }
 
   const handleViewActionDocument = (action: TaskAction) => {
@@ -577,30 +525,6 @@ export const TaskDetails: React.FC = () => {
               <CheckCircle className="mr-2 text-blue-600" /> Ações da Tarefa
             </h2>
             
-            {/* Step Navigation */}
-            {steps.length > 1 && (
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-md font-medium text-gray-700">Etapas</h3>
-                </div>
-                <div className="flex space-x-2 overflow-x-auto pb-2">
-                  {steps.map((step) => (
-                    <button
-                      key={step}
-                      onClick={() => setCurrentStep(step)}
-                      className={`px-4 py-2 rounded-lg transition ${
-                        currentStep === step
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      Etapa {step}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            
             {task.actions.length === 0 ? (
               <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
                 <CheckCircle className="mx-auto h-12 w-12 text-gray-400" />
@@ -609,7 +533,7 @@ export const TaskDetails: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {getCurrentStepActions().map((action, index) => (
+                {task.actions.map((action, index) => (
                   <div 
                     key={action.id} 
                     className={`border rounded-lg overflow-hidden transition-all ${
@@ -678,15 +602,6 @@ export const TaskDetails: React.FC = () => {
                               >
                                 <CheckCircle size={18} />
                               </button>
-                              {(currentUser?.role === 'admin' || currentUser?.role === 'manager') && (
-                                <button
-                                  onClick={() => handleEditAction(action)}
-                                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                                  title="Editar Ação"
-                                >
-                                  <Edit size={18} />
-                                </button>
-                              )}
                             </>
                           )}
                         </div>
@@ -802,11 +717,10 @@ export const TaskDetails: React.FC = () => {
           onCancel={() => {
             setSelectedAction(null);
             setIsActionViewOpen(false);
-            setIsEditMode(false);
           }}
           taskId={task.id}
           isOpen={isActionViewOpen}
-          isEditMode={isEditMode}
+          isEditMode={false}
         />
       )}
 

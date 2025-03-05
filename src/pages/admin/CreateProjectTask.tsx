@@ -56,13 +56,6 @@ export const CreateProjectTask: React.FC = () => {
   const [projectName, setProjectName] = useState('');
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
   const [showTemplateInfo, setShowTemplateInfo] = useState(false);
-  
-  // New state for managing steps
-  const [currentStep, setCurrentStep] = useState(1);
-  const [totalSteps, setTotalSteps] = useState(1);
-  const [actionsByStep, setActionsByStep] = useState<{[key: number]: TaskAction[]}>({
-    1: []
-  });
 
   useEffect(() => {
     if (projectId) {
@@ -148,7 +141,6 @@ export const CreateProjectTask: React.FC = () => {
     }
   }
 
-  // Updated to handle steps
   const handleAddActionFromTemplate = async () => {
     if (!selectedTemplate) return;
 
@@ -156,7 +148,7 @@ export const CreateProjectTask: React.FC = () => {
       const fullTemplate = await actionTemplateService.getActionTemplateById(selectedTemplate);
       if (!fullTemplate) return;
 
-      // Create a new action with step information
+      // Create a new action
       const newAction: TaskAction = {
         id: Date.now().toString() + Math.random().toString(36).substring(7),
         title: fullTemplate.title,
@@ -164,19 +156,15 @@ export const CreateProjectTask: React.FC = () => {
         completed: false,
         description: fullTemplate.elements.map(e => e.description || '').filter(Boolean).join(' '),
         data: { 
-          steps: deepCopy(fullTemplate.elements),
-          stepNumber: currentStep // Add step number to the action data
+          steps: deepCopy(fullTemplate.elements)
         },
       };
 
-      // Update actions for the current step
-      setActionsByStep(prev => {
-        const currentStepActions = prev[currentStep] || [];
-        return {
-          ...prev,
-          [currentStep]: [...currentStepActions, newAction]
-        };
-      });
+      // Add the action to the task
+      setFormData(prev => ({
+        ...prev,
+        actions: [...prev.actions, newAction]
+      }));
       
       // Reset the selected template after adding
       setSelectedTemplate('');
@@ -187,55 +175,11 @@ export const CreateProjectTask: React.FC = () => {
     }
   };
 
-  // Updated to handle steps
   const handleRemoveAction = (actionId: string) => {
-    setActionsByStep(prev => {
-      const updatedSteps = { ...prev };
-      
-      // Find which step contains this action
-      Object.keys(updatedSteps).forEach(stepKey => {
-        const stepNum = parseInt(stepKey);
-        updatedSteps[stepNum] = updatedSteps[stepNum].filter(action => action.id !== actionId);
-      });
-      
-      return updatedSteps;
-    });
-  };
-
-  // Add a new step
-  const handleAddStep = () => {
-    const newStepNumber = totalSteps + 1;
-    setTotalSteps(newStepNumber);
-    setActionsByStep(prev => ({
+    setFormData(prev => ({
       ...prev,
-      [newStepNumber]: []
+      actions: prev.actions.filter(action => action.id !== actionId)
     }));
-    setCurrentStep(newStepNumber); // Move to the new step
-  };
-
-  // Remove a step
-  const handleRemoveStep = (stepToRemove: number) => {
-    if (totalSteps <= 1) return; // Don't remove the last step
-    
-    setActionsByStep(prev => {
-      const updatedSteps = { ...prev };
-      
-      // Remove the specified step
-      delete updatedSteps[stepToRemove];
-      
-      // Renumber the steps after the removed one
-      for (let i = stepToRemove + 1; i <= totalSteps; i++) {
-        if (updatedSteps[i]) {
-          updatedSteps[i - 1] = updatedSteps[i];
-          delete updatedSteps[i];
-        }
-      }
-      
-      return updatedSteps;
-    });
-    
-    setTotalSteps(prev => prev - 1);
-    setCurrentStep(prev => prev > 1 ? prev - 1 : 1); // Move to previous step or stay at 1
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -246,22 +190,6 @@ export const CreateProjectTask: React.FC = () => {
     setError(null);
 
     try {
-      // Combine all actions from all steps into a flat array
-      const allActions: TaskAction[] = [];
-      for (let i = 1; i <= totalSteps; i++) {
-        if (actionsByStep[i]) {
-          // Add step information to each action
-          const actionsWithStepInfo = actionsByStep[i].map(action => ({
-            ...action,
-            data: {
-              ...action.data,
-              stepNumber: i
-            }
-          }));
-          allActions.push(...actionsWithStepInfo);
-        }
-      }
-
       const taskData: Omit<TaskSchema, 'id' | 'createdAt' | 'updatedAt'> = {
         title: formData.title,
         description: formData.description,
@@ -273,7 +201,7 @@ export const CreateProjectTask: React.FC = () => {
         status: 'pending',
         difficultyLevel: formData.difficultyLevel,
         coinsReward,
-        actions: allActions,
+        actions: formData.actions,
         createdBy: currentUser?.uid || '',
         subtasks: [],
         comments: [],
@@ -324,11 +252,29 @@ export const CreateProjectTask: React.FC = () => {
         return (
           <div className="mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
-            <input 
-              type="date" 
-              disabled 
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500"
-            />
+            <div className="flex items-center">
+              <Calendar size={16} className="text-gray-500 mr-2" />
+              <input 
+                type="date" 
+                disabled 
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500"
+              />
+            </div>
+            {field.description && <p className="mt-1 text-xs text-gray-500">{field.description}</p>}
+          </div>
+        );
+      case 'time':
+        return (
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">{field.label}</label>
+            <div className="flex items-center">
+              <Clock size={16} className="text-gray-500 mr-2" />
+              <input 
+                type="time" 
+                disabled 
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500"
+              />
+            </div>
             {field.description && <p className="mt-1 text-xs text-gray-500">{field.description}</p>}
           </div>
         );
@@ -575,162 +521,119 @@ export const CreateProjectTask: React.FC = () => {
               </div>
             </div>
 
-            {/* Steps Navigation */}
+            {/* Action Templates Section */}
             <div className="border-t border-gray-200 pt-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-800">Etapas da Tarefa</h3>
-                <button
-                  type="button"
-                  onClick={handleAddStep}
-                  className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center text-sm"
-                >
-                  <Plus size={16} className="mr-1" /> Adicionar Etapa
-                </button>
+                <h3 className="text-lg font-medium text-gray-800">Ações da Tarefa</h3>
               </div>
               
-              {/* Step Tabs */}
-              <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 pb-4">
-                {Array.from({ length: totalSteps }, (_, i) => i + 1).map(step => (
-                  <div key={step} className="flex items-center">
+              {/* Action Templates Selection */}
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
+                <div className="flex flex-col space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Selecione um Modelo de Ação
+                    </label>
                     <button
                       type="button"
-                      onClick={() => setCurrentStep(step)}
-                      className={`px-4 py-2 rounded-lg transition ${
-                        currentStep === step
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      onClick={() => setShowTemplateInfo(!showTemplateInfo)}
+                      className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50"
                     >
-                      Etapa {step}
+                      <HelpCircle size={16} />
                     </button>
-                    {totalSteps > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveStep(step)}
-                        className="ml-1 p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                        title="Remover Etapa"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
                   </div>
-                ))}
-              </div>
-              
-              {/* Current Step Content */}
-              <div>
-                <h4 className="text-md font-medium text-gray-700 mb-4">
-                  Etapa {currentStep}: Ações
-                </h4>
-                
-                {/* Action Templates Section */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4">
-                  <div className="flex flex-col space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-sm font-medium text-gray-700">
-                        Selecione um Modelo de Ação
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowTemplateInfo(!showTemplateInfo)}
-                        className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50"
-                      >
-                        <HelpCircle size={16} />
-                      </button>
+                  
+                  {showTemplateInfo && (
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800 mb-2">
+                      <p className="font-medium mb-1">O que são modelos de ação?</p>
+                      <p>Modelos de ação definem os campos que o usuário deverá preencher ao realizar uma tarefa. 
+                      Ao adicionar um modelo, você está criando um formulário estruturado que o responsável pela tarefa deverá completar.</p>
                     </div>
-                    
-                    {showTemplateInfo && (
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800 mb-2">
-                        <p className="font-medium mb-1">O que são modelos de ação?</p>
-                        <p>Modelos de ação definem os campos que o usuário deverá preencher ao realizar uma tarefa. 
-                        Ao adicionar um modelo, você está criando um formulário estruturado que o responsável pela tarefa deverá completar.</p>
-                      </div>
-                    )}
-                    
-                    <div className="flex space-x-2">
-                      <select
-                        value={selectedTemplate}
-                        onChange={(e) => setSelectedTemplate(e.target.value)}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Selecione um Modelo</option>
-                        {templates.map(template => (
-                          <option key={template.id} value={template.id}>
-                            {template.title}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleAddActionFromTemplate}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center"
-                        disabled={!selectedTemplate}
-                      >
-                        <Plus size={18} className="mr-1" /> Adicionar
-                      </button>
-                    </div>
-                    
-                    {selectedTemplate && previewTemplate && (
-                      <div className="mt-2">
-                        <div className="bg-white p-4 rounded-lg border border-gray-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <h3 className="font-medium text-gray-800 flex items-center">
-                              <Eye size={16} className="mr-2 text-blue-600" />
-                              Visualização do Modelo
-                            </h3>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-4">{previewTemplate.description}</p>
-                          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                            {previewTemplate.elements?.map((element: any, index: number) => (
-                              <div key={index}>
-                                {renderFieldPreview(element)}
-                              </div>
-                            ))}
-                          </div>
+                  )}
+                  
+                  <div className="flex space-x-2">
+                    <select
+                      value={selectedTemplate}
+                      onChange={(e) => setSelectedTemplate(e.target.value)}
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Selecione um Modelo</option>
+                      {templates.map(template => (
+                        <option key={template.id} value={template.id}>
+                          {template.title}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleAddActionFromTemplate}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center"
+                      disabled={!selectedTemplate}
+                    >
+                      <Plus size={18} className="mr-1" /> Adicionar
+                    </button>
+                  </div>
+                  
+                  {selectedTemplate && previewTemplate && (
+                    <div className="mt-2">
+                      <div className="bg-white p-4 rounded-lg border border-gray-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-medium text-gray-800 flex items-center">
+                            <Eye size={16} className="mr-2 text-blue-600" />
+                            Visualização do Modelo
+                          </h3>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">{previewTemplate.description}</p>
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                          {previewTemplate.elements?.map((element: any, index: number) => (
+                            <div key={index}>
+                              {renderFieldPreview(element)}
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Display Added Actions for Current Step */}
-                <div className="space-y-3 max-h-60 overflow-y-auto">
-                  {(!actionsByStep[currentStep] || actionsByStep[currentStep].length === 0) ? (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-                      <Info className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-                      <p className="text-gray-500">Adicione ações do modelo para esta etapa</p>
-                      <p className="text-sm text-gray-400 mt-1">As ações definem o que o responsável precisará fazer para completar a tarefa</p>
                     </div>
-                  ) : (
-                    actionsByStep[currentStep].map((action) => (
-                      <div key={action.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center">
-                            <div className="bg-blue-100 p-2 rounded-full mr-3">
-                              <FileText size={16} className="text-blue-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900">{action.title}</h4>
-                              <p className="text-sm text-gray-500 line-clamp-1">
-                                {action.type === 'document' 
-                                  ? `${action.data?.steps?.length || 0} campos para preencher` 
-                                  : action.description}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAction(action.id)}
-                            className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
-                            title="Remover ação"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    ))
                   )}
                 </div>
+              </div>
+
+              {/* Display Added Actions */}
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {formData.actions.length === 0 ? (
+                  <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
+                    <Info className="mx-auto h-12 w-12 text-gray-400 mb-2" />
+                    <p className="text-gray-500">Adicione ações do modelo para esta tarefa</p>
+                    <p className="text-sm text-gray-400 mt-1">As ações definem o que o responsável precisará fazer para completar a tarefa</p>
+                  </div>
+                ) : (
+                  formData.actions.map((action) => (
+                    <div key={action.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          <div className="bg-blue-100 p-2 rounded-full mr-3">
+                            <FileText size={16} className="text-blue-600" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">{action.title}</h4>
+                            <p className="text-sm text-gray-500 line-clamp-1">
+                              {action.type === 'document' 
+                                ? `${action.data?.steps?.length || 0} campos para preencher` 
+                                : action.description}
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAction(action.id)}
+                          className="text-gray-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-red-50"
+                          title="Remover ação"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

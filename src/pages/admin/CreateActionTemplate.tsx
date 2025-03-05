@@ -6,7 +6,7 @@ import { ActionTemplateSchema, TaskAction } from '../../types/firestore-schema'
 import { 
   PlusCircle, Save, XCircle, Plus, Trash2, ChevronLeft, ChevronRight, 
   File, FileText, Type, List, Settings, ArrowUp, ArrowDown, FileEdit, 
-  Info, Calendar, Upload, Check, AlertCircle, Eye
+  Info, Calendar, Upload, Check, AlertCircle, Eye, Clock
 } from 'lucide-react'
 import { DeleteConfirmationModal } from '../../components/modals/DeleteConfirmationModal'
 import { deepCopy } from '../../utils/helpers'
@@ -18,6 +18,7 @@ const getActionIcon = (type: TaskAction['type']) => {
     case 'long_text': return <FileText size={16} />;
     case 'file_upload': return <Upload size={16} />;
     case 'date': return <Calendar size={16} />;
+    case 'time': return <Clock size={16} />;
     case 'info': return <Info size={16} />;
     default: return null;
   }
@@ -158,11 +159,25 @@ const ActionPreview: React.FC<{
         )}
         
         {action.type === 'date' && (
-          <input 
-            type="date" 
-            disabled 
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
-          />
+          <div className="flex items-center">
+            <Calendar size={16} className="text-gray-500 mr-2" />
+            <input 
+              type="date" 
+              disabled 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+            />
+          </div>
+        )}
+        
+        {action.type === 'time' && (
+          <div className="flex items-center">
+            <Clock size={16} className="text-gray-500 mr-2" />
+            <input 
+              type="time" 
+              disabled 
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
+            />
+          </div>
         )}
         
         {action.type === 'file_upload' && (
@@ -291,7 +306,8 @@ export const CreateActionTemplate: React.FC = () => {
           title: type === 'text' ? 'Campo de Texto' : 
                  type === 'long_text' ? 'Campo de Texto Longo' : 
                  type === 'file_upload' ? 'Upload de Arquivo' : 
-                 type === 'date' ? 'Data' : 'Nova Ação',
+                 type === 'date' ? 'Data' : 
+                 type === 'time' ? 'Hora' : 'Nova Ação',
           completed: false,
           description: 'Descrição do campo',
         };
@@ -352,7 +368,6 @@ export const CreateActionTemplate: React.FC = () => {
     const value = parseInt(e.target.value, 10);
     setNumSteps(isNaN(value) || value < 1 ? 1 : value);
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -512,7 +527,7 @@ export const CreateActionTemplate: React.FC = () => {
             setError(`Etapa ${i}: A descrição da informação é obrigatória`);
             return false;
           }
-        } else if (!element.description?.trim()) {
+        } else if (!element.description?.trim() && element.type !== 'date' && element.type !== 'time') {
           setError(`Etapa ${i}: A descrição da ação é obrigatória`);
           return false;
         }
@@ -655,6 +670,7 @@ export const CreateActionTemplate: React.FC = () => {
                                element.type === 'long_text' ? 'Texto Longo' : 
                                element.type === 'file_upload' ? 'Upload de Arquivo' : 
                                element.type === 'date' ? 'Data' : 
+                               element.type === 'time' ? 'Hora' : 
                                element.type === 'info' ? 'Informação' : 'Ação'}
                             </span>
                           </div>
@@ -693,7 +709,7 @@ export const CreateActionTemplate: React.FC = () => {
                           />
                         </div>
 
-                        {element.type !== 'info' && (
+                        {element.type !== 'info' && element.type !== 'date' && element.type !== 'time' && (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Descrição/Instruções
@@ -703,6 +719,20 @@ export const CreateActionTemplate: React.FC = () => {
                               onChange={(e) => handleElementChange(element.id, 'description', e.target.value)}
                               className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300 min-h-[80px]"
                               placeholder="Instruções para o usuário"
+                            />
+                          </div>
+                        )}
+
+                        {(element.type === 'date' || element.type === 'time') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Descrição/Instruções (opcional)
+                            </label>
+                            <textarea
+                              value={element.description || ''}
+                              onChange={(e) => handleElementChange(element.id, 'description', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300 min-h-[80px]"
+                              placeholder="Instruções para o usuário (opcional)"
                             />
                           </div>
                         )}
@@ -790,6 +820,13 @@ export const CreateActionTemplate: React.FC = () => {
                   className="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center"
                 >
                   <Calendar size={16} className="mr-1" /> Data
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddElement('time')}
+                  className="px-3 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center"
+                >
+                  <Clock size={16} className="mr-1" /> Hora
                 </button>
                 <button
                   type="button"

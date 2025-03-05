@@ -68,6 +68,8 @@ export const ActionDocument: React.FC<ActionDocumentProps> = ({
         return 'Registro de Arquivos';
       case 'date':
         return 'Registro de Data';
+      case 'time':
+        return 'Registro de Hora';
       case 'document':
         return 'Documento de Processo';
       default:
@@ -102,6 +104,28 @@ export const ActionDocument: React.FC<ActionDocumentProps> = ({
       );
     }
 
+    if (action.type === 'date') {
+      return (
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center">
+            <Calendar size={18} className="text-blue-500 mr-2" />
+            <p className="text-gray-700">{action.description || 'N/A'}</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (action.type === 'time') {
+      return (
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center">
+            <Clock size={18} className="text-blue-500 mr-2" />
+            <p className="text-gray-700">{action.description || 'N/A'}</p>
+          </div>
+        </div>
+      );
+    }
+
     if (action.type === 'document' && action.data?.steps) {
       return (
         <div className="space-y-4">
@@ -117,6 +141,11 @@ export const ActionDocument: React.FC<ActionDocumentProps> = ({
                   <Calendar size={16} className="text-blue-500 mr-2" />
                   <p className="text-gray-700">{step.value || 'Data não selecionada'}</p>
                 </div>
+              ) : step.type === 'time' ? (
+                <div className="bg-white p-3 border border-gray-300 rounded-md flex items-center">
+                  <Clock size={16} className="text-blue-500 mr-2" />
+                  <p className="text-gray-700">{step.value || 'Hora não selecionada'}</p>
+                </div>
               ) : step.type === 'select' ? (
                 <div className="bg-white p-3 border border-gray-300 rounded-md">
                   <p className="text-gray-700">{step.value || 'Opção não selecionada'}</p>
@@ -127,6 +156,13 @@ export const ActionDocument: React.FC<ActionDocumentProps> = ({
                     {step.value && <CheckCircle size={14} className="text-white" />}
                   </div>
                   <span className="ml-2 text-gray-700">{step.label}</span>
+                </div>
+              ) : step.type === 'file_upload' && step.value?.files ? (
+                <div className="bg-white p-3 border border-gray-300 rounded-md">
+                  <p className="text-gray-700 flex items-center">
+                    <Paperclip size={16} className="text-blue-500 mr-2" />
+                    {step.value.files.length} arquivo(s) enviado(s)
+                  </p>
                 </div>
               ) : (
                 <p className="text-gray-600">{step.description}</p>

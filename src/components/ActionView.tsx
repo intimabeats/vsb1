@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { TaskAction } from '../types/firestore-schema';
 import { 
   Save, X, Plus, Trash2, FileText, Type, List, 
   Calendar, Image, Video, Mic, Info, Check,
   Upload, AlertCircle, Loader2, Camera, File,
-  Paperclip
+  Paperclip, Clock
 } from 'lucide-react';
 import { storage } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -31,6 +32,7 @@ export const ActionView: React.FC<ActionViewProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [allFieldsFilled, setAllFieldsFilled] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -56,6 +58,34 @@ export const ActionView: React.FC<ActionViewProps> = ({
       }, 100);
     }
   }, [isOpen]);
+
+  // Check if all required fields are filled
+  useEffect(() => {
+    const checkAllFieldsFilled = () => {
+      // Basic validation for standard fields
+      if (!editedAction.title.trim()) return false;
+      
+      if (editedAction.type === 'info') {
+        if (!editedAction.infoTitle?.trim()) return false;
+        if (!editedAction.infoDescription?.trim()) return false;
+        if (editedAction.hasAttachments && files.length === 0 && !editedAction.data?.fileURLs?.length) return false;
+      } else if (editedAction.type === 'file_upload') {
+        if (files.length === 0 && !editedAction.attachments?.length) return false;
+      } else if (editedAction.type === 'document' && editedAction.data?.steps) {
+        // Check if all required fields in document steps are filled
+        const steps = editedAction.data.steps;
+        for (const step of steps) {
+          if (step.required && !step.value && step.type !== 'checkbox') return false;
+        }
+      } else if (!editedAction.description?.trim() && editedAction.type !== 'date' && editedAction.type !== 'time') {
+        return false;
+      }
+      
+      return true;
+    };
+    
+    setAllFieldsFilled(checkAllFieldsFilled());
+  }, [editedAction, files]);
   
   const handleChange = (field: keyof TaskAction, value: any) => {
     setEditedAction(prev => ({
@@ -64,8 +94,8 @@ export const ActionView: React.FC<ActionViewProps> = ({
     }));
   };
   
-  const handleSave = async () => {
-    if (!validateForm()) return;
+  const handleSave = async (shouldComplete: boolean = false) => {
+    if (shouldComplete && !validateForm()) return;
     
     setIsUploading(true);
     setError(null);
@@ -75,7 +105,25 @@ export const ActionView: React.FC<ActionViewProps> = ({
       
       if (files.length > 0) {
         const uploadedFiles = await Promise.all(files.map(file => uploadFile(file)));
-        data.attachments = uploadedFiles;
+        
+        if (editedAction.type === 'info' && editedAction.hasAttachments) {
+          // For info type with attachments
+          data.data = {
+            ...data.data,
+            fileURLs: [...(data.data?.fileURLs || []), ...uploadedFiles.map(file => file.url)]
+          };
+        } else {
+          // For file_upload type
+          data.attachments = [...(data.attachments || []), ...uploadedFiles];
+        }
+      }
+      
+      // Set savedProgress flag if just saving without completing
+      if (!shouldComplete) {
+        data.data = {
+          ...data.data,
+          savedProgress: true
+        };
       }
       
       onComplete(editedAction.id, data);
@@ -101,13 +149,25 @@ export const ActionView: React.FC<ActionViewProps> = ({
         setError('Info description is required');
         return false;
       }
-    } else if (!editedAction.description?.trim()) {
-      setError('Description is required');
+      if (editedAction.hasAttachments && files.length === 0 && !editedAction.data?.fileURLs?.length) {
+        setError('Please attach at least one file');
+        return false;
+      }
+    } else if (editedAction.type === 'file_upload' && files.length === 0 && !editedAction.attachments?.length) {
+      setError('Please upload at least one file');
       return false;
-    }
-    
-    if (editedAction.type === 'info' && editedAction.hasAttachments && files.length === 0 && !editedAction.data?.fileURLs?.length) {
-      setError('Please attach at least one file');
+    } else if (editedAction.type === 'document' && editedAction.data?.steps) {
+      // Validate document steps
+      const steps = editedAction.data.steps;
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        if (step.required && !step.value && step.type !== 'checkbox') {
+          setError(`Field "${step.label}" is required`);
+          return false;
+        }
+      }
+    } else if (!editedAction.description?.trim() && editedAction.type !== 'date' && editedAction.type !== 'time') {
+      setError('Description is required');
       return false;
     }
     
@@ -143,6 +203,21 @@ export const ActionView: React.FC<ActionViewProps> = ({
     if (file.type.startsWith('video/')) return <Video size={16} className="text-red-500" />;
     if (file.type.startsWith('audio/')) return <Mic size={16} className="text-purple-500" />;
     return <File size={16} className="text-gray-500" />;
+  };
+
+  const handleStepValueChange = (stepIndex: number, value: any) => {
+    if (editedAction.data && editedAction.data.steps) {
+      const newSteps = [...editedAction.data.steps];
+      newSteps[stepIndex].value = value;
+      
+      setEditedAction(prev => ({
+        ...prev,
+        data: {
+          ...prev.data,
+          steps: newSteps
+        }
+      }));
+    }
   };
 
   const renderTypeSpecificFields = () => {
@@ -338,9 +413,35 @@ export const ActionView: React.FC<ActionViewProps> = ({
               </label>
             </div>
             
+            {/* Display existing attachments */}
+            {editedAction.attachments && editedAction.attachments.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium text-gray-700">Arquivos Existentes:</p>
+                {editedAction.attachments.map((attachment, index) => (
+                  <div key={`existing-${index}`} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                    <div className="flex items-center">
+                      <FileText size={16} className="text-blue-500 mr-2" />
+                      <span className="text-sm text-gray-700 truncate max-w-[200px]">
+                        {attachment.name}
+                      </span>
+                    </div>
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Ver
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             {/* File list */}
             {files.length > 0 && (
               <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium text-gray-700">Novos Arquivos:</p>
                 {files.map((file, index) => (
                   <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
                     <div className="flex items-center">
@@ -367,12 +468,33 @@ export const ActionView: React.FC<ActionViewProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               {editedAction.title || "Data"}
             </label>
-            <input
-              type="date"
-              value={editedAction.description || ''}
-              onChange={(e) => handleChange('description', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
-            />
+            <div className="flex items-center">
+              <Calendar size={18} className="text-gray-500 mr-2" />
+              <input
+                type="date"
+                value={editedAction.description || ''}
+                onChange={(e) => handleChange('description', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+              />
+            </div>
+          </div>
+        );
+        
+      case 'time':
+        return (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {editedAction.title || "Hora"}
+            </label>
+            <div className="flex items-center">
+              <Clock size={18} className="text-gray-500 mr-2" />
+              <input
+                type="time"
+                value={editedAction.description || ''}
+                onChange={(e) => handleChange('description', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+              />
+            </div>
           </div>
         );
       
@@ -383,36 +505,103 @@ export const ActionView: React.FC<ActionViewProps> = ({
               <h3 className="font-medium text-gray-800">{editedAction.title}</h3>
               {editedAction.data.steps.map((step: any, index: number) => (
                 <div key={index} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <h4 className="font-medium text-gray-700 mb-2">{step.title || `Etapa ${index + 1}`}</h4>
+                  <h4 className="font-medium text-gray-700 mb-2">{step.label || step.title || `Etapa ${index + 1}`}</h4>
                   {step.type === 'text' ? (
                     <input
                       type="text"
                       value={step.value || ''}
-                      onChange={(e) => {
-                        if (editedAction.data && editedAction.data.steps) {
-                          const newSteps = [...editedAction.data.steps];
-                          newSteps[index].value = e.target.value;
-                          handleChange('data', { ...editedAction.data, steps: newSteps });
-                        }
-                      }}
+                      onChange={(e) => handleStepValueChange(index, e.target.value)}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
                       placeholder={step.placeholder || "Digite aqui..."}
                     />
                   ) : step.type === 'long_text' ? (
                     <textarea
                       value={step.value || ''}
-                      onChange={(e) => {
-                        if (editedAction.data && editedAction.data.steps) {
-                          const newSteps = [...editedAction.data.steps];
-                          newSteps[index].value = e.target.value;
-                          handleChange('data', { ...editedAction.data, steps: newSteps });
-                        }
-                      }}
+                      onChange={(e) => handleStepValueChange(index, e.target.value)}
                       className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300 min-h-[100px]"
                       placeholder={step.placeholder || "Digite o texto detalhado aqui..."}
                     />
+                  ) : step.type === 'date' ? (
+                    <div className="flex items-center">
+                      <Calendar size={18} className="text-gray-500 mr-2" />
+                      <input
+                        type="date"
+                        value={step.value || ''}
+                        onChange={(e) => handleStepValueChange(index, e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+                      />
+                    </div>
+                  ) : step.type === 'time' ? (
+                    <div className="flex items-center">
+                      <Clock size={18} className="text-gray-500 mr-2" />
+                      <input
+                        type="time"
+                        value={step.value || ''}
+                        onChange={(e) => handleStepValueChange(index, e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+                      />
+                    </div>
+                  ) : step.type === 'file_upload' ? (
+                    <div>
+                      <div className="flex items-center justify-center w-full mb-3">
+                        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-6 h-6 mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-500">
+                              <span className="font-semibold">Clique para fazer upload</span>
+                            </p>
+                          </div>
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                const newFiles = Array.from(e.target.files);
+                                setFiles(prev => [...prev, ...newFiles]);
+                                // Store file reference in step value
+                                handleStepValueChange(index, {
+                                  files: newFiles.map(f => f.name)
+                                });
+                              }
+                            }}
+                            multiple
+                          />
+                        </label>
+                      </div>
+                      {step.value?.files && step.value.files.length > 0 && (
+                        <div className="text-sm text-gray-600">
+                          {step.value.files.length} arquivo(s) selecionado(s)
+                        </div>
+                      )}
+                    </div>
+                  ) : step.type === 'select' ? (
+                    <select
+                      value={step.value || ''}
+                      onChange={(e) => handleStepValueChange(index, e.target.value)}
+                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring focus:border-blue-300"
+                    >
+                      <option value="">Selecione uma opção</option>
+                      {step.options?.map((option: string, i: number) => (
+                        <option key={i} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : step.type === 'checkbox' ? (
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={step.value || false}
+                        onChange={(e) => handleStepValueChange(index, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <label className="ml-2 block text-sm text-gray-700">
+                        {step.description || "Marcar como concluído"}
+                      </label>
+                    </div>
                   ) : (
                     <p className="text-gray-600">{step.description}</p>
+                  )}
+                  {step.required && (
+                    <p className="text-xs text-red-500 mt-1">* Campo obrigatório</p>
                   )}
                 </div>
               ))}
@@ -430,7 +619,7 @@ export const ActionView: React.FC<ActionViewProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 action-view-modal">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800 flex items-center">
             {isEditMode ? (
@@ -464,7 +653,7 @@ export const ActionView: React.FC<ActionViewProps> = ({
           {!isEditMode && (
             <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 mb-4">
               <h3 className="font-medium text-blue-800 mb-1">{editedAction.title}</h3>
-              {editedAction.description && (
+              {editedAction.description && editedAction.type !== 'date' && editedAction.type !== 'time' && (
                 <p className="text-sm text-blue-700">{editedAction.description}</p>
               )}
             </div>
@@ -485,38 +674,6 @@ export const ActionView: React.FC<ActionViewProps> = ({
             </div>
           )}
           
-          {/* Type selection - only visible in edit mode */}
-          {isEditMode && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tipo
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { type: 'text', label: 'Texto', icon: <Type size={16} /> },
-                  { type: 'long_text', label: 'Texto Longo', icon: <FileText size={16} /> },
-                  { type: 'info', label: 'Informação', icon: <Info size={16} /> },
-                  { type: 'file_upload', label: 'Arquivo', icon: <Image size={16} /> },
-                  { type: 'date', label: 'Data', icon: <Calendar size={16} /> }
-                ].map(item => (
-                  <button
-                    key={item.type}
-                    type="button"
-                    onClick={() => handleChange('type', item.type)}
-                    className={`p-2 rounded-md flex flex-col items-center justify-center ${
-                      editedAction.type === item.type 
-                        ? 'bg-blue-100 text-blue-700 border-blue-300 border' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="text-xs mt-1">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          
           {/* Type-specific fields */}
           {renderTypeSpecificFields()}
           
@@ -529,12 +686,35 @@ export const ActionView: React.FC<ActionViewProps> = ({
             >
               Cancelar
             </button>
+                        {/* Save button (without completing) */}
             <button
               type="button"
-              onClick={handleSave}
+              onClick={() => handleSave(false)}
               disabled={isUploading}
-              className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center ${
+              className={`px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition flex items-center ${
                 isUploading ? 'opacity-70 cursor-not-allowed' : ''
+              }`}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 size={16} className="mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save size={16} className="mr-2" />
+                  Salvar Progresso
+                </>
+              )}
+            </button>
+            
+            {/* Complete button */}
+            <button
+              type="button"
+              onClick={() => handleSave(true)}
+              disabled={isUploading || !allFieldsFilled}
+              className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center ${
+                isUploading || !allFieldsFilled ? 'opacity-70 cursor-not-allowed' : ''
               }`}
             >
               {isUploading ? (
@@ -544,7 +724,7 @@ export const ActionView: React.FC<ActionViewProps> = ({
                 </>
               ) : (
                 <>
-                  <Save size={16} className="mr-2" />
+                  <Check size={16} className="mr-2" />
                   {isEditMode ? 'Salvar Alterações' : 'Completar Ação'}
                 </>
               )}

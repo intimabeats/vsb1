@@ -92,6 +92,7 @@ export type FieldType =
   | 'long_text'      // Textarea for longer content
   | 'number'         // Numeric input
   | 'date'           // Date picker
+  | 'time'           // Time picker (new)
   | 'select'         // Dropdown selection
   | 'checkbox'       // Boolean checkbox
   | 'radio'          // Radio button selection
@@ -146,6 +147,7 @@ export interface TaskAction {
     value?: any;              // Stored value for the field
     values?: Record<string, any>; // For document with multiple fields
     stepNumber?: number;      // Added stepNumber to fix type errors
+    savedProgress?: boolean;  // Flag to indicate if progress was saved but not completed
   };
   attachments?: {             // Attachments specific to THIS action step
     id: string;
